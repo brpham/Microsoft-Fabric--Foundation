@@ -1,0 +1,125 @@
+﻿[Reflection.Assembly]::LoadWithPartialName("System.Web")| out-null
+$URI="[event hub namespace name].servicebus.windows.net/[event hub name]"
+
+
+$Access_Policy_Name="RootManageSharedAccessKey"
+$Access_Policy_Key="[key]"
+
+# Token expires now+3000
+# $Expires=([DateTimeOffset]::Now.ToUnixTimeSeconds())+3000
+$Expires=([DateTimeOffset]::Now.ToUnixTimeSeconds())+100000
+$SignatureString=[System.Web.HttpUtility]::UrlEncode($URI)+ "`n" + [string]$Expires
+$HMAC = New-Object System.Security.Cryptography.HMACSHA256
+$HMAC.key = [Text.Encoding]::ASCII.GetBytes($Access_Policy_Key)
+$Signature = $HMAC.ComputeHash([Text.Encoding]::ASCII.GetBytes($SignatureString))
+$Signature = [Convert]::ToBase64String($Signature)
+$SASToken = "SharedAccessSignature sr=" + [System.Web.HttpUtility]::UrlEncode($URI) + "&sig=" + [System.Web.HttpUtility]::UrlEncode($Signature) + "&se=" + $Expires + "&skn=" + $Access_Policy_Name
+
+$SASToken
+$method = "POST"
+$URI = "https://[event hub namespace name].servicebus.windows.net/[event hub name]/messages"
+
+$signature = $SASToken
+$idx = 0
+
+# API headers
+$headers = @{
+            "Authorization"=$signature;
+            "Content-Type"="application/atom+xml;type=entry;charset=utf-8";
+            }
+
+
+
+
+
+
+
+
+
+
+
+while($true)
+{
+    $idx = $idx + 1
+
+    
+    $ComputerCPU = (Get-WmiObject  -Class win32_processor -ErrorAction Stop | Measure-Object -Property LoadPercentage -Average | Select-Object Average).Average
+
+    $ComputerMemory = Get-WmiObject  -Class win32_operatingsystem -ErrorAction Stop
+    $UsedMemory = $ComputerMemory.TotalVisibleMemorySize - $ComputerMemory.FreePhysicalMemory
+    $Memory = (($UsedMemory/ $ComputerMemory.TotalVisibleMemorySize)*100)
+    $RoundMemory = [math]::Round($Memory, 2)
+
+
+    $Date = Get-Date -DisplayHint Date -Format MM/dd/yyyy
+    $Time = Get-Date -DisplayHint Time -Format HH:mm:ss
+
+    $DateTime = Get-Date #or any other command to get DateTime object
+    $myunixtime = ([DateTimeOffset]$DateTime).ToUnixTimeSeconds()
+
+    $myts = (Get-Date -Format "MM/dd/yyyy hh:mm tt").ToString()
+    
+    # https://ss64.com/ps/get-date.html
+    $Sec = (get-date).second
+    $Min = (get-date).minute 
+    $ProcessorCount = (Get-Process).Count
+    $Temp = Get-Temperature
+    $ThreadCount = (Get-Process|Select-Object -ExpandProperty Threads).Count
+    #$Uptime = Get-Uptime
+    $MaxClockSpeed = (get-wmiobject Win32_Processor | select-object -first 1).MaxClockSpeed
+    $CurrentClockSpeed = (get-wmiobject Win32_Processor | select-object -first 1).CurrentClockSpeed
+
+    $CpuName = Get-WmiObject Win32_Processor | Select-Object -ExpandProperty Name
+    $CpuName -replace '^.+@\s'
+
+
+    $payload = @{
+    "computername" = "desktop-38a2uc7"
+    "idx" = $idx
+    "Dt" =$Date
+    "Tm" =$Time
+    "myts" = $myts
+    "ProcessorCnt" =$ProcessorCount
+    "CpuUtil" = $ComputerCPU
+    "Memory" = $RoundMemory
+    #"Temp" = $Temp
+    "ThreadCnt" =$ThreadCount
+    "doctype" = "3"
+    "guid"= "$([System.Guid]::NewGuid())"
+    "myunixtime" = $myunixtime
+    }
+
+    # old
+    # Invoke-RestMethod -Method Post -Uri "$endpoint" -Body (ConvertTo-Json @($payload))
+
+    # create Request Body
+    $body = "{'type':'test', 'DeviceId':'dev-01', 'Temperature':'37.0'}"
+
+    # execute the Azure REST API
+    # Invoke-RestMethod -Uri $URI -Method $method -Headers $headers -Body $body
+    #Invoke-RestMethod -Uri $URI -Method $method -Headers $headers -Body (ConvertTo-Json @($payload))
+
+    
+    #For ($i = 0; $i -lt 1000; $i++) {
+        #Write-host $i 
+        Write-Host (ConvertTo-Json @($payload))
+        Invoke-RestMethod -Uri $URI -Method $method -Headers $headers -Body (ConvertTo-Json @($payload)) 
+        #Invoke-RestMethod -Uri $URI21 -Method $method -Headers $headers -Body (ConvertTo-Json @($payload)) 
+    #}
+
+
+    #Write-Host "Date: " $Date " Time: " $Time " CPU: " $ComputerCPU " Memory: " $RoundMemory " Temp(C): " $Temp " Thread Count: " $ThreadCount " Processor Count: " $ProcessorCount 
+    #Write-Host "Uptime: " $Uptime
+    #Write-Host "max clock speed: " $maxClockSpeed
+    #Write-Host "current clock speed: " $currentClockSpeed
+    #Write-Host "cpu name: " $cpuName
+    #Write-Host "second: " $Sec
+    #Write-Host "minute: " $Min 
+    #Write-Host "mod 5 min: "  ($Min % 5)
+    #Write-Host "mod 1 min: "  ($Sec % 60)
+    #Write-Host (ConvertTo-Json @($payload))
+
+
+
+    sleep 1
+}
