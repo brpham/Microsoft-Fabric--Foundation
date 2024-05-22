@@ -1,4 +1,9 @@
-﻿[Reflection.Assembly]::LoadWithPartialName("System.Web")| out-null
+#Change file extension from *.txt to *.ps1
+#Replace [event hub namespace name] with Azure Event Hub namespace name
+#Replace [event hub name] with Azure Event Hub name
+#Replace [key] with key
+
+[Reflection.Assembly]::LoadWithPartialName("System.Web")| out-null
 $URI="[event hub namespace name].servicebus.windows.net/[event hub name]"
 
 
